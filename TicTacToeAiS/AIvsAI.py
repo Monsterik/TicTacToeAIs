@@ -1,5 +1,5 @@
 from Game import TicTacToe_Env
-from NeuralNet import DeepQNetwork
+from Test import BrainDQN
 import time
 import os
 from random import randint
@@ -11,20 +11,8 @@ def wrong_input(action):
 		return True
 	else:
 		return False
-def showstatus(step,sum1p,sum2p,sum1a,sum2a,epoch,wrong):
-	string = 'Player 1 score:' + str(sum1p).rjust(4) + '| Player 2 score:' + str(sum2p).rjust(4)  + '\n' + 'AI 1 score:' + str(sum1a).rjust(4) + '| AI 2 score:' + str(sum2a).rjust(4) + '\n' + 'Step:' + str(step).rjust(4) + 'Epoch:' + str(epoch).rjust(4) + 'Wrong:' + str(wrong).rjust(4)
-	print(string, end='', flush=True)
 
-RL = DeepQNetwork(env.n_actions, env.n_features,
-                    learning_rate=0.1,
-                    reward_decay=0.9,
-                    e_greedy=0.9,
-                    replace_target_iter=50,
-                    memory_size=2000,
-					e_greedy_increment=0.01
-                    # output_graph=True
-                    )
-
+RL = BrainDQN(9)
 env.playermode = False
 sum1p = 0
 sum2p = 0
@@ -36,16 +24,13 @@ os.system('cls')
 for episode in range(110000):
 	# initial observation
 	observation = env.reset()
+	RL.setPerception(observation, 0, 0)
 	os.system('cls')
 	env.render()
-
-	showstatus(RL.learn_step_counter,sum1p,sum2p,sum1a,sum2a,RL.epoch,env.wrong)
-
 	#time.sleep(0.1)
-
 	while(True):
 		if env.player == 1:
-			action = RL.choose_action(observation)
+			action = RL.getAction()
 			action += 1
 			
 			#print('AI 1 TURN: ',action)
@@ -58,18 +43,11 @@ for episode in range(110000):
 		
 		#time.sleep(0.1)
 
-		observation_, reward1, reward2, done = env.step(action)
-		RL.store_transition(observation, action, reward1, observation_)
-		RL.learn()
+		observation, reward1, reward2, done = env.step(action)
+		RL.setPerception(observation, action, reward1)
 
-		# swap observation
-		observation = observation_
-
-		
 		os.system('cls')
 		env.render()
-
-		showstatus(RL.learn_step_counter,sum1p,sum2p,sum1a,sum2a,RL.epoch,env.wrong)
 
 		if done:
 			if env.reward1 == 1:

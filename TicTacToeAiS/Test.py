@@ -20,7 +20,7 @@ REPLAY_MEMORY = 1000000 # number of previous transitions to remember
 BATCH_SIZE = 32 # size of minibatch
 UPDATE_TIME = 10000
 
-class BrainDQN:
+class BrainDQN():
 
 	def __init__(self,actions):
 		# init replay memory
@@ -38,7 +38,7 @@ class BrainDQN:
 		self.copyTargetQNetworkOperation = [self.W_conv1T.assign(self.W_conv1),self.b_conv1T.assign(self.b_conv1),self.W_conv2T.assign(self.W_conv2),self.b_conv2T.assign(self.b_conv2),self.W_conv3T.assign(self.W_conv3),self.b_conv3T.assign(self.b_conv3),self.W_fc1T.assign(self.W_fc1),self.b_fc1T.assign(self.b_fc1),self.W_fc2T.assign(self.W_fc2),self.b_fc2T.assign(self.b_fc2)]
 
 		self.createTrainingMethod()
-
+		self.currentState = np.array([0,0,0,0,0,0,0,0,0])
 		# saving and loading networks
 		self.saver = tf.train.Saver()
 		self.session = tf.InteractiveSession()
@@ -46,23 +46,23 @@ class BrainDQN:
 		checkpoint = tf.train.get_checkpoint_state("saved_networks")
 		if checkpoint and checkpoint.model_checkpoint_path:
 				self.saver.restore(self.session, checkpoint.model_checkpoint_path)
-				print "Successfully loaded:", checkpoint.model_checkpoint_path
+				print("Successfully loaded:", checkpoint.model_checkpoint_path)
 		else:
-				print "Could not find old network weights"
+				print("Could not find old network weights")
 
 
 	def createQNetwork(self):
 		# network weights
-		W_conv1 = self.weight_variable([8,8,4,32])
+		W_conv1 = self.weight_variable([8,1,6,32])
 		b_conv1 = self.bias_variable([32])
 
-		W_conv2 = self.weight_variable([4,4,32,64])
+		W_conv2 = self.weight_variable([4,4,36,64])
 		b_conv2 = self.bias_variable([64])
 
-		W_conv3 = self.weight_variable([3,3,64,64])
+		W_conv3 = self.weight_variable([3,3,72,64])
 		b_conv3 = self.bias_variable([64])
 
-		W_fc1 = self.weight_variable([3136,512])
+		W_fc1 = self.weight_variable([3240,512])
 		b_fc1 = self.bias_variable([512])
 
 		W_fc2 = self.weight_variable([512,self.actions])
@@ -70,7 +70,7 @@ class BrainDQN:
 
 		# input layer
 
-		stateInput = tf.placeholder("float",[None,84,84,4])
+		stateInput = tf.placeholder("float",[1,1,18,4])
 
 		# hidden layers
 		h_conv1 = tf.nn.relu(self.conv2d(stateInput,W_conv1,4) + b_conv1)
@@ -80,7 +80,7 @@ class BrainDQN:
 
 		h_conv3 = tf.nn.relu(self.conv2d(h_conv2,W_conv3,1) + b_conv3)
 		h_conv3_shape = h_conv3.get_shape().as_list()
-		print "dimension:",h_conv3_shape[1]*h_conv3_shape[2]*h_conv3_shape[3]
+		print("dimension:",h_conv3_shape[1]*h_conv3_shape[2]*h_conv3_shape[3])
 		h_conv3_flat = tf.reshape(h_conv3,[-1,3136])
 		h_fc1 = tf.nn.relu(tf.matmul(h_conv3_flat,W_fc1) + b_fc1)
 
@@ -95,7 +95,7 @@ class BrainDQN:
 	def createTrainingMethod(self):
 		self.actionInput = tf.placeholder("float",[None,self.actions])
 		self.yInput = tf.placeholder("float", [None]) 
-		Q_Action = tf.reduce_sum(tf.mul(self.QValue, self.actionInput), reduction_indices = 1)
+		Q_Action = tf.reduce_sum(tf.matmul(self.QValue, self.actionInput), reduction_indices = 1)
 		self.cost = tf.reduce_mean(tf.square(self.yInput - Q_Action))
 		self.trainStep = tf.train.RMSPropOptimizer(0.00025,0.99,0.0,1e-6).minimize(self.cost)
 
@@ -134,9 +134,9 @@ class BrainDQN:
 			self.copyTargetQNetwork()
 
 		
-	def setPerception(self,nextObservation,action,reward,terminal):
-		newState = np.append(nextObservation,self.currentState[:,:,1:],axis = 2)
-		self.replayMemory.append((self.currentState,action,reward,newState,terminal))
+	def setPerception(self,nextObservation,action,reward):
+		newState = np.append(nextObservation,self.currentState)
+		self.replayMemory.append((self.currentState,action,reward,newState))
 		if len(self.replayMemory) > REPLAY_MEMORY:
 			self.replayMemory.popleft()
 		if self.timeStep > OBSERVE:
@@ -152,8 +152,8 @@ class BrainDQN:
 		else:
 			state = "train"
 
-		print "TIMESTEP", self.timeStep, "/ STATE", state, \
-		"/ EPSILON", self.epsilon
+		print("TIMESTEP", self.timeStep, "/ STATE", state, \
+		"/ EPSILON", self.epsilon)
 
 		self.currentState = newState
 		self.timeStep += 1
